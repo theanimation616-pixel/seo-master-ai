@@ -172,6 +172,37 @@ function Home() {
     }
   };
 
+  const sendThumb = async (file: File) => {
+    if (!plan) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("YouTube thumbnails must be 2 MB or smaller");
+      return;
+    }
+    try {
+      setBusy("upload-thumb");
+      const buffer = await file.arrayBuffer();
+      let binary = "";
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      }
+      const { url } = await uploadThumbnail({
+        data: {
+          jobId: plan.job.id,
+          base64: btoa(binary),
+          contentType: file.type || "image/jpeg",
+        },
+      });
+      setThumbUrl(url);
+      toast.success("Thumbnail uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Thumbnail upload failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+
   const publish = async () => {
     if (!plan || !videoFile) {
       toast.error("Pick the video file first");
