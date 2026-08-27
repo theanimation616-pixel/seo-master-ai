@@ -525,15 +525,53 @@ Return JSON with keys: title, description, tags, hashtags, keywords, strategyNot
     .map((h) => (h.startsWith("#") ? h : `#${h}`).replace(/\s+/g, ""))
     .slice(0, 12);
 
+  // Deterministic guarantee: whatever the model wrote, the measured primary
+  // term and the winnable long-tail terms are always present in the title,
+  // the first line of the description and the tag list.
+  const primary = research.rankingTargets.primary;
+  const banned = new Set(research.rankingTargets.avoid.map((k) => k.toLowerCase()));
+
+  let title = (meta.title ?? brief.titleCandidates?.[0] ?? "Manhwa Recap").trim();
+  if (primary && !title.toLowerCase().includes(primary.toLowerCase())) {
+    const lead = primary.replace(/\b\w/g, (c) => c.toUpperCase());
+    title = `${lead} — ${title}`;
+  }
+
+  let description = (meta.description ?? "").trim();
+  if (primary && !description.slice(0, 100).toLowerCase().includes(primary.toLowerCase())) {
+    description = `${primary.replace(/\b\w/g, (c) => c.toUpperCase())} — ${description}`;
+  }
+
+  const orderedTags = [
+    ...(primary ? [primary] : []),
+    ...research.rankingTargets.secondary,
+    ...research.rankingTargets.longTail,
+    ...(meta.tags ?? []),
+  ].filter((t) => typeof t === "string" && !banned.has(t.toLowerCase()));
+
+  const orderedKeywords = Array.from(
+    new Set(
+      [
+        ...(primary ? [primary] : []),
+        ...research.rankingTargets.secondary,
+        ...research.rankingTargets.longTail,
+        ...(meta.keywords ?? []),
+      ]
+        .filter((k): k is string => typeof k === "string" && k.length > 1)
+        .filter((k) => !banned.has(k.toLowerCase())),
+    ),
+  ).slice(0, 25);
+
   return {
-    title: (meta.title ?? brief.titleCandidates?.[0] ?? "Manhwa Recap").slice(0, 98),
-    description: (meta.description ?? "").slice(0, 4900),
-    tags: clampTags(meta.tags ?? []),
-    hashtags,
-    keywords: (meta.keywords ?? []).slice(0, 25),
+    title: title.slice(0, 98),
+    description: description.slice(0, 4900),
+    tags: clampTags(orderedTags),
+    hashtags: hashtags.filter((h) => !banned.has(h.replace(/^#/, "").toLowerCase())),
+    keywords: orderedKeywords,
     strategyNotes: (meta.strategyNotes ?? []).slice(0, 8),
   };
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Thumbnail                                                           */
