@@ -453,7 +453,49 @@ function Home() {
             </div>
 
             <div className="space-y-5">
+              {plan.research.keywordMetrics.length > 0 && (
+                <div className="rounded-xl bg-secondary/40 p-4">
+                  <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                    Rank #1 plan · measured on live YouTube data
+                  </div>
+                  {plan.research.rankingTargets.primary && (
+                    <p className="mb-3 text-sm">
+                      Primary target:{" "}
+                      <span className="font-semibold text-accent">
+                        {plan.research.rankingTargets.primary}
+                      </span>
+                    </p>
+                  )}
+                  <div className="max-h-56 overflow-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="text-muted-foreground">
+                        <tr>
+                          <th className="py-1 pr-2 font-normal">Keyword</th>
+                          <th className="py-1 pr-2 font-normal">Vol</th>
+                          <th className="py-1 pr-2 font-normal">Comp</th>
+                          <th className="py-1 pr-2 font-normal">Avg views</th>
+                          <th className="py-1 pr-2 font-normal">Eng %</th>
+                          <th className="py-1 font-normal">Opp</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {plan.research.keywordMetrics.slice(0, 12).map((m) => (
+                          <tr key={m.keyword} className="border-t border-border/50">
+                            <td className="py-1 pr-2">{m.keyword}</td>
+                            <td className="py-1 pr-2">{m.searchVolume}</td>
+                            <td className="py-1 pr-2">{m.competition}</td>
+                            <td className="py-1 pr-2">{m.averageViewCount.toLocaleString()}</td>
+                            <td className="py-1 pr-2">{m.engagementRate}</td>
+                            <td className="py-1 text-accent">{m.opportunityScore}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
               <div>
+
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Title</div>
                 <p className="text-lg font-bold">{plan.meta.title}</p>
               </div>
