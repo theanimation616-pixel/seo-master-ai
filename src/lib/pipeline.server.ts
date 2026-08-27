@@ -224,14 +224,200 @@ export async function runResearch(brief: StoryBrief): Promise<ResearchData> {
     .sort((a, b) => b.count - a.count)
     .slice(0, 60);
 
+  const candidates = buildKeywordCandidates(brief, suggestions, topTagFrequency);
+  const keywordMetrics = await measureKeywords(candidates, suggestions, token);
+  const rankingTargets = pickRankingTargets(keywordMetrics);
+
   return {
     queries: base,
     suggestions,
     competitors: competitors.slice(0, 25),
     topTagFrequency,
     titlePatterns: competitors.slice(0, 12).map((c) => c.title),
+    keywordMetrics,
+    rankingTargets,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Step 2b — measure demand vs. competition for every candidate term   */
+/* ------------------------------------------------------------------ */
+
+function buildKeywordCandidates(
+  brief: StoryBrief,
+  suggestions: string[],
+  topTagFrequency: { tag: string; count: number }[],
+): string[] {
+  const series = (brief.seriesGuess ?? "").trim();
+  const genre = brief.genres?.[0] ?? "manhwa";
+  const seeded = [
+    ...(brief.seedQueries ?? []),
+    series && `${series} recap`,
+    series && `${series} explained`,
+    series && `${series} full story`,
+    series && `${series} manhwa`,
+    `${genre} manhwa recap`,
+  ];
+  const pool = [
+    ...seeded,
+    ...suggestions.slice(0, 25),
+    ...topTagFrequency.slice(0, 15).map((t) => t.tag),
+  ];
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of pool) {
+    if (typeof raw !== "string") continue;
+    const kw = raw.toLowerCase().replace(/\s+/g, " ").trim();
+    if (kw.length < 3 || kw.length > 70) continue;
+    if (seen.has(kw)) continue;
+    seen.add(kw);
+    out.push(kw);
+    if (out.length >= 18) break;
+  }
+  return out;
+}
+
+/** Live search-supply + performance stats for a single term. */
+async function measureKeyword(
+  keyword: string,
+  suggestions: string[],
+  token: string,
+): Promise<KeywordMetric | null> {
+  try {
+    const search = (await ytFetch(
+      `search?part=snippet&type=video&maxResults=10&order=relevance&regionCode=US&relevanceLanguage=en&q=${encodeURIComponent(keyword)}`,
+      token,
+    )) as {
+      pageInfo?: { totalResults?: number };
+      items?: { id?: { videoId?: string } }[];
+    };
+
+    const competingVideos = Number(search.pageInfo?.totalResults ?? 0);
+    const ids = (search.items ?? [])
+      .map((i) => i.id?.videoId)
+      .filter((v): v is string => Boolean(v))
+      .slice(0, 10);
+    if (!ids.length) return null;
+
+    const details = (await ytFetch(`videos?part=snippet,statistics&id=${ids.join(",")}`, token)) as {
+      items?: {
+        snippet?: { publishedAt?: string; channelTitle?: string };
+        statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
+      }[];
+    };
+
+    const rows = (details.items ?? []).map((item) => ({
+      views: Number(item.statistics?.viewCount ?? 0),
+      likes: Number(item.statistics?.likeCount ?? 0),
+      comments: Number(item.statistics?.commentCount ?? 0),
+      publishedAt: item.snippet?.publishedAt ?? "",
+    }));
+    if (!rows.length) return null;
+
+    const views = rows.map((r) => r.views).sort((a, b) => a - b);
+    const averageViewCount = Math.round(views.reduce((a, b) => a + b, 0) / views.length);
+    const medianViewCount = views[Math.floor(views.length / 2)] ?? 0;
+    const viewsToBeat = views[views.length - 1] ?? 0;
+
+    const totalViews = rows.reduce((a, r) => a + r.views, 0) || 1;
+    const totalInteractions = rows.reduce((a, r) => a + r.likes + r.comments, 0);
+    const engagementRate = Number(((totalInteractions / totalViews) * 100).toFixed(2));
+
+    const yearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    const staleTopResults = rows.filter(
+      (r) => r.publishedAt && new Date(r.publishedAt).getTime() < yearAgo,
+    ).length;
+
+    // Demand proxy: autocomplete is YouTube telling us what people actually
+    // type. Terms that appear as (or inside) suggestions have proven demand;
+    // the top results' median views confirm the audience size is real.
+    const suggestionHits = suggestions.filter(
+      (s) => s.includes(keyword) || keyword.includes(s),
+    ).length;
+    const demandFromSuggestions = Math.min(60, suggestionHits * 12);
+    const demandFromViews = Math.min(40, Math.log10(Math.max(medianViewCount, 1)) * 7);
+    const searchVolume = Math.round(demandFromSuggestions + demandFromViews);
+
+    // Competition: supply size + how strong the incumbent #1 is, softened when
+    // the page is full of old uploads we can displace.
+    const supply = Math.min(55, Math.log10(Math.max(competingVideos, 1)) * 9);
+    const strength = Math.min(45, Math.log10(Math.max(viewsToBeat, 1)) * 7);
+    const competition = Math.max(
+      1,
+      Math.round(supply + strength - staleTopResults * 2.5),
+    );
+
+    const opportunityScore = Math.max(
+      0,
+      Math.min(100, Math.round(searchVolume * 1.15 - competition * 0.85 + staleTopResults * 1.5)),
+    );
+
+    const relatedKeywords = suggestions
+      .filter((s) => s !== keyword && (s.includes(keyword) || keyword.includes(s)))
+      .slice(0, 6);
+
+    return {
+      keyword,
+      searchVolume,
+      competingVideos,
+      competition,
+      averageViewCount,
+      medianViewCount,
+      engagementRate,
+      viewsToBeat,
+      staleTopResults,
+      opportunityScore,
+      relatedKeywords,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Measures every candidate in small parallel batches to stay inside quota. */
+export async function measureKeywords(
+  candidates: string[],
+  suggestions: string[],
+  token: string,
+): Promise<KeywordMetric[]> {
+  const results: KeywordMetric[] = [];
+  for (let i = 0; i < candidates.length; i += 4) {
+    const batch = candidates.slice(i, i + 4);
+    const measured = await Promise.all(
+      batch.map((kw) => measureKeyword(kw, suggestions, token)),
+    );
+    for (const m of measured) if (m) results.push(m);
+  }
+  return results.sort((a, b) => b.opportunityScore - a.opportunityScore);
+}
+
+/**
+ * Turns raw metrics into an explicit ranking plan. The #1 requirement means we
+ * never hand the writer a term whose incumbent is unbeatable — the primary
+ * target is always the highest-demand term we can realistically top.
+ */
+export function pickRankingTargets(metrics: KeywordMetric[]): ResearchData["rankingTargets"] {
+  if (!metrics.length) {
+    return { primary: null, secondary: [], longTail: [], avoid: [] };
+  }
+  const winnable = metrics.filter((m) => m.competition <= 70 && m.opportunityScore >= 25);
+  const ranked = (winnable.length ? winnable : metrics).slice();
+
+  const primary = ranked[0]?.keyword ?? null;
+  const secondary = ranked.slice(1, 6).map((m) => m.keyword);
+  const longTail = metrics
+    .filter((m) => m.keyword.split(" ").length >= 4 && m.competition <= 55)
+    .slice(0, 8)
+    .map((m) => m.keyword);
+  const avoid = metrics
+    .filter((m) => m.competition > 75 && m.opportunityScore < 25)
+    .slice(0, 8)
+    .map((m) => m.keyword);
+
+  return { primary, secondary, longTail, avoid };
+}
+
 
 /* ------------------------------------------------------------------ */
 /* Step 3 — synthesise publish-ready metadata                          */
