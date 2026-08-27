@@ -30,7 +30,9 @@ import {
   generatePlan,
   getAuthLink,
   getConnection,
+  uploadThumbnail,
   verifyVideo,
+
 } from "@/lib/pipeline.functions";
 import { uploadResumable } from "@/lib/resumable-upload";
 
