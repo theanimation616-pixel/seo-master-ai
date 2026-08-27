@@ -10,33 +10,65 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksPurgeArtifactsRouteImport } from './routes/api/public/hooks/purge-artifacts'
+import { Route as ApiPublicOauthYoutubeCallbackRouteImport } from './routes/api/public/oauth/youtube/callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksPurgeArtifactsRoute =
+  ApiPublicHooksPurgeArtifactsRouteImport.update({
+    id: '/api/public/hooks/purge-artifacts',
+    path: '/api/public/hooks/purge-artifacts',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicOauthYoutubeCallbackRoute =
+  ApiPublicOauthYoutubeCallbackRouteImport.update({
+    id: '/api/public/oauth/youtube/callback',
+    path: '/api/public/oauth/youtube/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/hooks/purge-artifacts': typeof ApiPublicHooksPurgeArtifactsRoute
+  '/api/public/oauth/youtube/callback': typeof ApiPublicOauthYoutubeCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/hooks/purge-artifacts': typeof ApiPublicHooksPurgeArtifactsRoute
+  '/api/public/oauth/youtube/callback': typeof ApiPublicOauthYoutubeCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/hooks/purge-artifacts': typeof ApiPublicHooksPurgeArtifactsRoute
+  '/api/public/oauth/youtube/callback': typeof ApiPublicOauthYoutubeCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/public/hooks/purge-artifacts'
+    | '/api/public/oauth/youtube/callback'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/public/hooks/purge-artifacts'
+    | '/api/public/oauth/youtube/callback'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/public/hooks/purge-artifacts'
+    | '/api/public/oauth/youtube/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicHooksPurgeArtifactsRoute: typeof ApiPublicHooksPurgeArtifactsRoute
+  ApiPublicOauthYoutubeCallbackRoute: typeof ApiPublicOauthYoutubeCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +80,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/purge-artifacts': {
+      id: '/api/public/hooks/purge-artifacts'
+      path: '/api/public/hooks/purge-artifacts'
+      fullPath: '/api/public/hooks/purge-artifacts'
+      preLoaderRoute: typeof ApiPublicHooksPurgeArtifactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/youtube/callback': {
+      id: '/api/public/oauth/youtube/callback'
+      path: '/api/public/oauth/youtube/callback'
+      fullPath: '/api/public/oauth/youtube/callback'
+      preLoaderRoute: typeof ApiPublicOauthYoutubeCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicHooksPurgeArtifactsRoute: ApiPublicHooksPurgeArtifactsRoute,
+  ApiPublicOauthYoutubeCallbackRoute: ApiPublicOauthYoutubeCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
