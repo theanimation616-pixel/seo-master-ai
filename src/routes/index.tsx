@@ -367,10 +367,36 @@ function Home() {
                   </div>
                 )}
               </div>
-              <Button variant="outline" className="w-full" onClick={makeThumb} disabled={busy === "thumb"}>
-                {busy === "thumb" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                {thumbUrl ? "Regenerate thumbnail" : "Generate thumbnail"}
-              </Button>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button variant="outline" onClick={makeThumb} disabled={busy === "thumb"}>
+                  {busy === "thumb" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {thumbUrl ? "Regenerate thumbnail" : "Generate thumbnail"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => thumbInputRef.current?.click()}
+                  disabled={busy === "upload-thumb"}
+                >
+                  {busy === "upload-thumb" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="size-4" />
+                  )}
+                  Upload thumbnail
+                </Button>
+              </div>
+              <input
+                ref={thumbInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void sendThumb(file);
+                }}
+              />
+
 
               {plan.thumbnailPlan && (
                 <div className="mt-4 space-y-2 rounded-xl bg-secondary/40 p-4 text-sm">
