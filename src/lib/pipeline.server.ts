@@ -484,15 +484,39 @@ Top competitors: ${research.competitors
           .map((c) => `${c.title} — ${c.views} views`)
           .join(" | ")}
 
+MEASURED KEYWORD DATA (live global YouTube metrics — this is the ONLY approved
+source of search terms; every keyword, tag and hashtag you output must come from
+this table or be a direct combination of terms in it):
+${
+  research.keywordMetrics.length
+    ? research.keywordMetrics
+        .map(
+          (m) =>
+            `- "${m.keyword}" | search volume ${m.searchVolume}/100 | competition ${m.competition}/100 (${m.competingVideos.toLocaleString()} competing videos) | avg views ${m.averageViewCount.toLocaleString()} | median views ${m.medianViewCount.toLocaleString()} | engagement ${m.engagementRate}% | views to beat for #1 ${m.viewsToBeat.toLocaleString()} | stale top results ${m.staleTopResults}/10 | opportunity ${m.opportunityScore}/100 | related: ${m.relatedKeywords.join(", ") || "none"}`,
+        )
+        .join("\n")
+    : "No keyword metrics were available — fall back to the autocomplete demand list above and prefer long-tail phrases."
+}
+
+RANKING PLAN DERIVED FROM THAT DATA:
+Primary target (must rank #1): ${research.rankingTargets.primary ?? "choose the highest-opportunity term above"}
+Secondary targets: ${research.rankingTargets.secondary.join(" | ") || "none"}
+Long-tail (near-guaranteed #1) targets: ${research.rankingTargets.longTail.join(" | ") || "none"}
+Do NOT target (too competitive to reach #1): ${research.rankingTargets.avoid.join(" | ") || "none"}
+
 Rules:
-- Title: max 90 characters, front-load the highest-demand keyword, add curiosity, no clickbait lies, no emoji spam (max 1).
-- Description: 900-1500 characters. First 150 characters must repeat the primary keyword naturally. Include a short hook, a 4-6 line chapter/summary section, a "Keywords" line, then hashtags on the last line.
-- tags: 25-35 entries mixing exact-match, long-tail, and competitor tags. Every tag under 60 characters.
-- hashtags: 8-12 entries, each starting with # and no spaces.
-- keywords: 15-25 primary/secondary search phrases you targeted.
-- strategyNotes: 4-6 short bullets explaining the ranking play.
+- HARD REQUIREMENT: the video must land at #1 for its primary term. Choose a primary term with high search volume AND beatable competition; if every high-volume term is saturated, pick the strongest long-tail term you can genuinely top rather than a vanity term you cannot.
+- Never use a term from the "Do NOT target" list as the primary term or as a hashtag.
+- Weight every choice by the measured numbers: search volume, competition, average view count, engagement rate and related keywords. Prefer high volume + low competition + high engagement.
+- Title: max 90 characters, open with the exact primary term verbatim, then curiosity, no clickbait lies, no emoji spam (max 1).
+- Description: 900-1500 characters. The primary term must appear verbatim in the first 100 characters, and 3-5 more times naturally across the body. Include a short hook, a 4-6 line chapter/summary section, a "Keywords" line built from the measured terms, then hashtags on the last line.
+- tags: 25-35 entries — start with the exact primary term, then secondary terms, then long-tail terms, then high-frequency competitor tags. Every tag under 60 characters.
+- hashtags: 8-12 entries, each starting with # and no spaces, drawn from the measured terms.
+- keywords: 15-25 measured search phrases you targeted, ordered by opportunity score.
+- strategyNotes: 4-6 short bullets, each citing a real number from the table (e.g. volume, competition, views to beat) and explaining how this metadata beats the current #1.
 
 Return JSON with keys: title, description, tags, hashtags, keywords, strategyNotes.`,
+
       },
     ],
   });
