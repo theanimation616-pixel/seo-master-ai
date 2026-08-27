@@ -38,13 +38,49 @@ export type ThumbnailPlan = {
   prompt: string;
 };
 
+/**
+ * One measured search term. Everything here comes from live YouTube data, not
+ * from the model's imagination — the SEO writer is only allowed to target
+ * terms that appear in this list.
+ */
+export type KeywordMetric = {
+  keyword: string;
+  /** Autocomplete depth + suggestion breadth => relative monthly demand proxy (0-100). */
+  searchVolume: number;
+  /** Number of videos YouTube reports for the term (supply / competition size). */
+  competingVideos: number;
+  /** 0-100, higher = harder to rank for. */
+  competition: number;
+  /** Mean view count of the current top 10 results. */
+  averageViewCount: number;
+  /** Median view count — resistant to a single viral outlier. */
+  medianViewCount: number;
+  /** (likes + comments) / views of the current top results, as a percentage. */
+  engagementRate: number;
+  /** Views the video must beat to sit at #1 for this term. */
+  viewsToBeat: number;
+  /** How many of the top 10 are older than 12 months (stale = easy to displace). */
+  staleTopResults: number;
+  /** demand vs. difficulty, 0-100. Higher = better chance to rank #1. */
+  opportunityScore: number;
+  relatedKeywords: string[];
+};
+
 export type ResearchData = {
   queries: string[];
   suggestions: string[];
   competitors: CompetitorVideo[];
   topTagFrequency: { tag: string; count: number }[];
   titlePatterns: string[];
+  keywordMetrics: KeywordMetric[];
+  rankingTargets: {
+    primary: string | null;
+    secondary: string[];
+    longTail: string[];
+    avoid: string[];
+  };
 };
+
 
 export type Metadata = {
   title: string;
