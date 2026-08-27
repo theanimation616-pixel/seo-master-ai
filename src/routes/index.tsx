@@ -89,6 +89,8 @@ function Home() {
   const [verification, setVerification] = useState<Verification | null>(null);
   const [publishedVideoId, setPublishedVideoId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const thumbInputRef = useRef<HTMLInputElement | null>(null);
+
 
   const refreshConnection = async () => {
     const c = await getConnection();
